@@ -11,6 +11,7 @@ RUN apk add --update --no-cache \
     python3 \
     # To generate and renew Postfix TLS certificate:
     certbot \
+    ca-certificates \
     dcron
 
 # Install Python dependencies.
