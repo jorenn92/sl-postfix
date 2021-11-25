@@ -1,0 +1,80 @@
+# POSTFIX config file, adapted for SimpleLogin
+smtpd_banner = $myhostname ESMTP $mail_name
+biff = no
+
+# Redirect logs to stdout (better with Docker).
+maillog_file = /dev/stdout
+
+# appending .domain is the MUA's job.
+append_dot_mydomain = no
+
+# Uncomment the next line to generate "delayed mail" warnings
+#delay_warning_time = 4h
+
+readme_directory = no
+
+# See http://www.postfix.org/COMPATIBILITY_README.html -- default to 2 on
+# fresh installs.
+compatibility_level = 2
+
+# TLS parameters
+{% if tls %}
+smtpd_use_tls = yes
+smtp_tls_security_level = may
+smtp_tls_loglevel = 1
+smtpd_tls_cert_file = {{ tls_cert }}
+smtpd_tls_key_file = {{ tls_key }}
+smtpd_tls_session_cache_database = lmdb:${data_directory}/smtpd_scache
+smtp_tls_session_cache_database = lmdb:${data_directory}/smtp_scache
+{% else %}
+smtpd_use_tls = no
+{% endif %}
+
+# See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for
+# information on enabling SSL in the smtp client.
+
+alias_maps = hash:/etc/aliases
+
+# Allow containers on the same private network to send emails via Postfix.
+mynetworks_style = subnet
+
+# Set your domain here
+mydestination =
+myhostname = {{ env['POSTFIX_FQDN'] }}
+mydomain = {{ env['ALIASES_DEFAULT_DOMAIN'] }}
+myorigin = {{ env['ALIASES_DEFAULT_DOMAIN'] }}
+
+relay_domains = pgsql:/etc/postfix/pgsql-relay-domains.cf
+transport_maps = pgsql:/etc/postfix/pgsql-transport-maps.cf
+
+# HELO restrictions
+smtpd_delay_reject = yes
+smtpd_helo_required = yes
+smtpd_helo_restrictions =
+    permit_mynetworks,
+    reject_non_fqdn_helo_hostname,
+    reject_invalid_helo_hostname,
+    permit
+
+# Sender restrictions:
+smtpd_sender_restrictions =
+    permit_mynetworks,
+    reject_non_fqdn_sender,
+    reject_unknown_sender_domain,
+    permit
+
+# Recipient restrictions:
+smtpd_recipient_restrictions =
+   reject_unauth_pipelining,
+   reject_non_fqdn_recipient,
+   reject_unknown_recipient_domain,
+   permit_mynetworks,
+   reject_unauth_destination,
+   reject_rbl_client zen.spamhaus.org,
+   reject_rbl_client bl.spamcop.net,
+   permit
+
+{% if 'RELAY_HOST' in env %}
+# Set email relay host:
+relayhost = {{ env['RELAY_HOST'] }}
+{% endif %}
